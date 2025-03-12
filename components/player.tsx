@@ -18,11 +18,23 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import Image from 'next/image';
+import type ReactPlayer from 'react-player';
+
+// Define the type for the player instance
+type PlayerRef = ReactPlayer & {
+  seekTo(amount: number, type?: "seconds" | "fraction"): void;
+};
 
 // Dynamically import ReactPlayer with SSR disabled
-const ReactPlayer = dynamic(() => import('react-player/lazy'), {
+const ReactPlayer = dynamic<ReactPlayerType>(() => import('react-player/lazy'), {
   ssr: false,
 });
+
+interface ReactPlayerType {
+  seekTo: (amount: number, type?: 'seconds' | 'fraction') => void;
+  getInternalPlayer: () => any;
+}
 
 export function Player() {
   const { 
@@ -41,7 +53,7 @@ export function Player() {
   const [repeat, setRepeat] = useState(false);
   const [shuffle, setShuffle] = useState(false);
   const [ready, setReady] = useState(false);
-  const playerRef = useRef(null);
+  const playerRef = useRef<ReactPlayerType | null>(null);
 
   const togglePlay = () => setIsPlaying(!isPlaying);
   const toggleMute = () => setVolume(volume === 0 ? 1 : 0);
@@ -86,10 +98,14 @@ export function Player() {
               exit={{ opacity: 0, x: -20 }}
               className="flex items-center w-1/3"
             >
-              <img 
-                src={currentSong.thumbnail} 
+              <Image 
+                src={currentSong.thumbnail}
                 alt={currentSong.title}
+                width={64}
+                height={64}
                 className="w-16 h-16 rounded-md mr-4 object-cover"
+                placeholder="blur"
+                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+yHgAFWAJ/pNyaswAAAABJRU5ErkJggg=="
               />
               <div className="overflow-hidden">
                 <p className="font-medium truncate">{currentSong.title}</p>
@@ -172,34 +188,39 @@ export function Player() {
                 <SheetTitle>Queue</SheetTitle>
               </SheetHeader>
               <div className="mt-4">
-                {queue.map((song, index) => (
-                  <motion.div
-                    key={`${song.id}-${index}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50"
-                  >
-                    <img
-                      src={song.thumbnail}
-                      alt={song.title}
-                      className="w-12 h-12 rounded object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{song.title}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {song.artist}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFromQueue(song.id)}
+                {queue && queue.length > 0 ? (
+                  queue.map((song, index) => (
+                    <motion.div
+                      key={`${song.id}-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50"
                     >
-                      Remove
-                    </Button>
-                  </motion.div>
-                ))}
-                {queue.length === 0 && (
+                      <Image
+                        src={song.thumbnail}
+                        alt={song.title}
+                        width={48}
+                        height={48}
+                        className="w-12 h-12 rounded object-cover"
+                        placeholder="blur"
+                        blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+yHgAFWAJ/pNyaswAAAABJRU5ErkJggg=="
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{song.title}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {song.artist}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFromQueue(song.id)}
+                      >
+                        Remove
+                      </Button>
+                    </motion.div>
+                  ))
+                ) : (
                   <p className="text-center text-muted-foreground">
                     No songs in queue
                   </p>

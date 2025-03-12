@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
+import { Sidebar } from '@/components/sidebar';
+import { Player } from '@/components/player';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,7 +30,22 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <div className="h-screen bg-background">
+            <div className="flex h-full">
+              {/* Sidebar */}
+              <div className="w-64 flex-shrink-0">
+                <Sidebar />
+              </div>
+
+              {/* Main Content */}
+              <div className="flex-1 overflow-y-auto pb-24">
+                {children}
+              </div>
+            </div>
+
+            {/* Player */}
+            <Player />
+          </div>
           <Toaster />
         </ThemeProvider>
       </body>

@@ -2,31 +2,52 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Play, Pause, Plus } from "lucide-react";
+import { Search, Play, Pause, Plus, Heart, MoreVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchYouTube } from "@/lib/youtube";
 import { getRecommendations } from "@/lib/gemini";
 import { usePlayerStore } from "@/lib/store";
 import { toast } from "sonner";
+import Image from 'next/image';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AddToPlaylistDialog } from "./add-to-playlist-dialog";
 
 export function MainContent() {
+  const { 
+    currentSong, 
+    isPlaying, 
+    addToQueue, 
+    playlists, 
+    addSongToPlaylist,
+    likedSongs,
+    addToLikedSongs,
+    removeFromLikedSongs 
+  } = usePlayerStore();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  
-  const { currentSong, setCurrentSong, isPlaying, setIsPlaying, addToQueue } = usePlayerStore();
+  const [selectedSong, setSelectedSong] = useState(null);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = async (query?: string) => {
+    const searchTerm = query || searchQuery;
+    if (!searchTerm.trim()) return;
     
     setIsLoading(true);
     try {
-      const results = await searchYouTube(searchQuery);
+      const results = await searchYouTube(searchTerm);
       setSearchResults(results);
       
-      const aiRecs = await getRecommendations(searchQuery);
+      const aiRecs = await getRecommendations(searchTerm);
       setRecommendations(aiRecs);
     } catch (error) {
       toast.error("Failed to search. Please try again.");
@@ -48,6 +69,27 @@ export function MainContent() {
     } else {
       setCurrentSong(songData);
       setIsPlaying(true);
+    }
+  };
+
+  const toggleLike = (song) => {
+    const songData = {
+      id: song.id.videoId,
+      title: song.snippet.title,
+      artist: song.snippet.channelTitle,
+      thumbnail: song.snippet.thumbnails.medium.url,
+      url: `https://www.youtube.com/watch?v=${song.id.videoId}`,
+      duration: 0, // You might want to get actual duration from YouTube API
+    };
+
+    const isLiked = likedSongs.some(s => s.id === songData.id);
+    
+    if (isLiked) {
+      removeFromLikedSongs(songData.id);
+      toast.success("Removed from Liked Songs");
+    } else {
+      addToLikedSongs(songData);
+      toast.success("Added to Liked Songs");
     }
   };
 
@@ -81,7 +123,7 @@ export function MainContent() {
           className="max-w-md bg-secondary/50"
         />
         <Button 
-          onClick={handleSearch} 
+          onClick={() => handleSearch()}
           disabled={isLoading}
           className="bg-primary hover:bg-primary/90"
         >
@@ -101,12 +143,15 @@ export function MainContent() {
             <motion.div
               key={result.id.videoId}
               variants={item}
-              className="song-card"
+              className="bg-card rounded-lg overflow-hidden"
             >
-              <img
+              <Image
                 src={result.snippet.thumbnails.medium.url}
                 alt={result.snippet.title}
-                className="w-full aspect-video object-cover"
+                width={320}
+                height={180}
+                className="w-full object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
               <div className="p-4">
                 <h3 className="font-semibold truncate">{result.snippet.title}</h3>
@@ -130,19 +175,56 @@ export function MainContent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      addToQueue({
-                        id: result.id.videoId,
-                        title: result.snippet.title,
-                        artist: result.snippet.channelTitle,
-                        thumbnail: result.snippet.thumbnails.medium.url,
-                      });
-                      toast.success("Added to queue");
-                    }}
+                    onClick={() => toggleLike(result)}
+                    className={likedSongs.some(s => s.id === result.id.videoId) ? "text-primary" : ""}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add to Queue
+                    <Heart 
+                      className={`h-4 w-4 ${
+                        likedSongs.some(s => s.id === result.id.videoId) ? "fill-current" : ""
+                      }`} 
+                    />
                   </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          addToQueue({
+                            id: result.id.videoId,
+                            title: result.snippet.title,
+                            artist: result.snippet.channelTitle,
+                            thumbnail: result.snippet.thumbnails.medium.url,
+                            url: `https://www.youtube.com/watch?v=${result.id.videoId}`,
+                            duration: 0, // You'll need to get this from the YouTube API
+                          });
+                          toast.success("Added to queue");
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add to Queue
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedSong({
+                            id: result.id.videoId,
+                            title: result.snippet.title,
+                            artist: result.snippet.channelTitle,
+                            thumbnail: result.snippet.thumbnails.medium.url,
+                            url: `https://www.youtube.com/watch?v=${result.id.videoId}`,
+                            duration: 0,
+                          });
+                          setIsAddToPlaylistOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add to Playlist
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </motion.div>
@@ -171,7 +253,10 @@ export function MainContent() {
                   variant="link"
                   size="sm"
                   className="mt-2 text-primary"
-                  onClick={() => handleSearch(`${rec.title} ${rec.artist}`)}
+                  onClick={() => {
+                    setSearchQuery(`${rec.title} ${rec.artist}`);
+                    handleSearch(`${rec.title} ${rec.artist}`);
+                  }}
                 >
                   Search This Song
                 </Button>
@@ -180,6 +265,21 @@ export function MainContent() {
           </div>
         </motion.div>
       )}
+      <AddToPlaylistDialog
+        open={isAddToPlaylistOpen}
+        onOpenChange={setIsAddToPlaylistOpen}
+        song={selectedSong}
+        playlists={playlists}
+        onAddToPlaylist={(playlistId, song) => {
+          addSongToPlaylist(playlistId, song);
+          setIsAddToPlaylistOpen(false);
+          toast.success("Added to playlist");
+        }}
+        onCreateNewPlaylist={() => {
+          setIsAddToPlaylistOpen(false);
+          setIsCreatePlaylistOpen(true);
+        }}
+      />
     </div>
   );
 }

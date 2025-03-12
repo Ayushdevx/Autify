@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchYouTube } from "@/lib/youtube";
 import { getRecommendations } from "@/lib/gemini";
-import { usePlayerStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import Image from 'next/image';
+import { Song } from "@/lib/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,23 +19,40 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AddToPlaylistDialog } from "./add-to-playlist-dialog";
 
+interface YouTubeSearchResult {
+  id: {
+    videoId: string;
+  };
+  snippet: {
+    title: string;
+    channelTitle: string;
+    thumbnails: {
+      medium: {
+        url: string;
+      };
+    };
+  };
+}
+
 export function MainContent() {
   const { 
     currentSong, 
-    isPlaying, 
+    isPlaying,
+    setIsPlaying,
+    setCurrentSong,
     addToQueue, 
     playlists, 
     addSongToPlaylist,
     likedSongs,
     addToLikedSongs,
     removeFromLikedSongs 
-  } = usePlayerStore();
+  } = useStore();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedSong, setSelectedSong] = useState(null);
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
 
@@ -57,11 +75,13 @@ export function MainContent() {
   };
 
   const playSong = (song: any) => {
-    const songData = {
+    const songData: Song = {
       id: song.id.videoId,
       title: song.snippet.title,
       artist: song.snippet.channelTitle,
       thumbnail: song.snippet.thumbnails.medium.url,
+      url: `https://www.youtube.com/watch?v=${song.id.videoId}`,
+      duration: 0
     };
 
     if (currentSong?.id === song.id.videoId) {
@@ -72,14 +92,14 @@ export function MainContent() {
     }
   };
 
-  const toggleLike = (song) => {
-    const songData = {
+  const toggleLike = (song: YouTubeSearchResult) => {
+    const songData: Song = {
       id: song.id.videoId,
       title: song.snippet.title,
       artist: song.snippet.channelTitle,
       thumbnail: song.snippet.thumbnails.medium.url,
       url: `https://www.youtube.com/watch?v=${song.id.videoId}`,
-      duration: 0, // You might want to get actual duration from YouTube API
+      duration: 0,
     };
 
     const isLiked = likedSongs.some(s => s.id === songData.id);
@@ -265,21 +285,23 @@ export function MainContent() {
           </div>
         </motion.div>
       )}
-      <AddToPlaylistDialog
-        open={isAddToPlaylistOpen}
-        onOpenChange={setIsAddToPlaylistOpen}
-        song={selectedSong}
-        playlists={playlists}
-        onAddToPlaylist={(playlistId, song) => {
-          addSongToPlaylist(playlistId, song);
-          setIsAddToPlaylistOpen(false);
-          toast.success("Added to playlist");
-        }}
-        onCreateNewPlaylist={() => {
-          setIsAddToPlaylistOpen(false);
-          setIsCreatePlaylistOpen(true);
-        }}
-      />
+      {selectedSong && (
+        <AddToPlaylistDialog
+          open={isAddToPlaylistOpen}
+          onOpenChange={setIsAddToPlaylistOpen}
+          song={selectedSong}
+          playlists={playlists}
+          onAddToPlaylist={(playlistId, song) => {
+            addSongToPlaylist(playlistId, song);
+            setIsAddToPlaylistOpen(false);
+            toast.success("Added to playlist");
+          }}
+          onCreateNewPlaylist={() => {
+            setIsAddToPlaylistOpen(false);
+            setIsCreatePlaylistOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,36 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Plus, Search, Grid, List, Heart, Play, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useStore } from "@/lib/store";
+import { toast } from "sonner";
+import { CreatePlaylistDialog } from "./create-playlist-dialog";
+import { AddToPlaylistDialog } from "./add-to-playlist-dialog";
+import { Song, Playlist } from "@/lib/types";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { usePlayerStore } from "@/lib/store";
-import Image from "next/image";
-import { toast } from "sonner";
-import { AddToPlaylistDialog } from "./add-to-playlist-dialog";
-import { CreatePlaylistDialog } from "./create-playlist-dialog";
-import { Song } from "@/lib/types";
-import { useRouter } from "next/navigation";
 
-interface Playlist {
+interface LikedSongsPlaylist {
   id: string;
   name: string;
-  description?: string;
   songs: Song[];
-  coverImage?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  isLikedSongs: boolean;
 }
 
+type PlaylistItem = Playlist | LikedSongsPlaylist;
+
 interface ItemProps {
-  item: Playlist | { id: string; name: string; songs: Song[] };
+  item: PlaylistItem;
   onPlay: (song: Song) => void;
   onAddToPlaylist: (song: Song) => void;
 }
@@ -41,43 +40,47 @@ export function Library() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
+  const router = useRouter();
+  
   const { 
     setCurrentSong, 
     setIsPlaying, 
-    playlists, 
-    addPlaylist, 
-    addSongToPlaylist,
-    likedSongs
-  } = usePlayerStore();
-  const router = useRouter();
+    playlists,
+    likedSongs,
+    addSongToPlaylist
+  } = useStore();
 
-  const handlePlaySong = (song: Song) => {
+  const handlePlayClick = (song: Song) => {
     setCurrentSong(song);
     setIsPlaying(true);
   };
 
-  const handleAddToPlaylist = (playlistId: string, song: Song) => {
-    addSongToPlaylist(playlistId, song);
-    setIsAddToPlaylistOpen(false);
+  const handleAddToPlaylistClick = (song: Song) => {
+    setSelectedSong(song);
+    setIsAddToPlaylistOpen(true);
   };
 
-  const handleCreatePlaylist = (name: string, description?: string) => {
-    const newPlaylist = {
-      id: Date.now().toString(),
-      name,
-      description,
-      songs: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  const handleCreatePlaylist = async (name: string, description?: string) => {
+    try {
+      const newPlaylist: Playlist = {
+        id: Date.now().toString(),
+        name,
+        description,
+        songs: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-    addPlaylist(newPlaylist);
-    setIsCreatePlaylistOpen(false);
-    
-    if (selectedSong) {
-      addSongToPlaylist(newPlaylist.id, selectedSong);
-      setIsAddToPlaylistOpen(false);
-      toast.success(`Added to ${newPlaylist.name}`);
+      if (selectedSong) {
+        addSongToPlaylist(newPlaylist.id, selectedSong);
+        setIsAddToPlaylistOpen(false);
+        toast.success(`Added to ${newPlaylist.name}`);
+      }
+      
+      setIsCreatePlaylistOpen(false);
+      toast.success("Playlist created successfully");
+    } catch (error) {
+      toast.error("Failed to create playlist");
     }
   };
 
@@ -85,92 +88,59 @@ export function Library() {
     router.push(`/playlist/${playlistId}`);
   };
 
-  const filteredItems = [
-    { 
-      id: 'liked', 
-      name: 'Liked Songs', 
-      songs: likedSongs, 
-      isLikedSongs: true 
-    },
+  const likedSongsPlaylist: LikedSongsPlaylist = {
+    id: 'liked',
+    name: 'Liked Songs',
+    songs: likedSongs,
+    isLikedSongs: true
+  };
+
+  const filteredItems: PlaylistItem[] = [
+    likedSongsPlaylist,
     ...playlists
-  ].filter(item => 
+  ].filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Input
-            placeholder="Search in Your Library"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-64"
-            leftIcon={<Search className="h-4 w-4" />}
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                {view === "grid" ? (
-                  <Grid className="h-4 w-4" />
-                ) : (
-                  <List className="h-4 w-4" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setView("grid")}>
-                Grid View
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setView("list")}>
-                List View
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <Button onClick={() => setIsCreatePlaylistOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Playlist
+      {/* Search and view controls */}
+      <div className="flex items-center gap-4 mb-6">
+        <Input
+          placeholder="Search playlists..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm"
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setView(view === "grid" ? "list" : "grid")}
+        >
+          {view === "grid" ? <List className="h-4 w-4" /> : <Grid className="h-4 w-4" />}
         </Button>
       </div>
 
-      <div 
-        className={
-          view === "grid" 
-            ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4" 
-            : "space-y-2"
-        }
-      >
+      {/* Playlists grid/list */}
+      <div className={view === "grid" ? "grid grid-cols-3 gap-4" : "space-y-2"}>
         {filteredItems.map((item) => (
           <motion.div
             key={item.id}
             layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={
-              view === "grid" 
-                ? "group relative cursor-pointer" 
-                : "flex items-center gap-4 p-2 rounded-lg hover:bg-card cursor-pointer"
-            }
-            onClick={() => handlePlaylistClick(item.id)}
           >
             {view === "grid" ? (
-              <GridItem 
-                item={item} 
-                onPlay={handlePlaySong}
-                onAddToPlaylist={(song) => {
-                  setSelectedSong(song);
-                  setIsAddToPlaylistOpen(true);
-                }}
+              <GridItem
+                item={item}
+                onPlay={handlePlayClick}
+                onAddToPlaylist={handleAddToPlaylistClick}
               />
             ) : (
-              <ListItem 
-                item={item} 
-                onPlay={handlePlaySong}
-                onAddToPlaylist={(song) => {
-                  setSelectedSong(song);
-                  setIsAddToPlaylistOpen(true);
-                }}
+              <ListItem
+                item={item}
+                onPlay={handlePlayClick}
+                onAddToPlaylist={handleAddToPlaylistClick}
               />
             )}
           </motion.div>
@@ -182,7 +152,11 @@ export function Library() {
         onOpenChange={setIsAddToPlaylistOpen}
         song={selectedSong!}
         playlists={playlists}
-        onAddToPlaylist={handleAddToPlaylist}
+        onAddToPlaylist={(playlistId, song) => {
+          addSongToPlaylist(playlistId, song);
+          setIsAddToPlaylistOpen(false);
+          toast.success("Added to playlist");
+        }}
         onCreateNewPlaylist={() => {
           setIsAddToPlaylistOpen(false);
           setIsCreatePlaylistOpen(true);
@@ -199,68 +173,39 @@ export function Library() {
 }
 
 function GridItem({ item, onPlay, onAddToPlaylist }: ItemProps) {
-  const songCount = item.songs.length;
-  
+  const coverImage = 'isLikedSongs' in item 
+    ? "/liked-songs-cover.jpg"
+    : item.coverImage || "/default-playlist.jpg";
+
   return (
-    <>
-      <div className="aspect-square relative overflow-hidden rounded-lg">
-        <Image
-          src={item.isLikedSongs ? '/liked-songs-cover.jpg' : (item.coverImage || '/default-playlist-cover.jpg')}
-          alt={item.name}
-          fill
-          className="object-cover"
-        />
-        {item.isLikedSongs && (
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-purple-500 opacity-60" />
-        )}
-        {songCount > 0 && (
-          <Button
-            size="icon"
-            className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => onPlay(item.songs[0])}
-          >
-            <Play className="h-6 w-6" />
-          </Button>
-        )}
-      </div>
-      <h3 className="mt-2 font-medium truncate">{item.name}</h3>
-      <p className="text-sm text-muted-foreground">
-        {songCount} {songCount === 1 ? 'song' : 'songs'}
-      </p>
-    </>
+    <div className="relative group p-4 rounded-lg bg-card hover:bg-card/80">
+      <Image
+        src={coverImage}
+        alt={item.name}
+        width={200}
+        height={200}
+        className="rounded-md"
+      />
+      <h3 className="mt-2 font-semibold">{item.name}</h3>
+    </div>
   );
 }
 
 function ListItem({ item, onPlay, onAddToPlaylist }: ItemProps) {
-  const songCount = item.songs.length;
-  
+  const coverImage = 'isLikedSongs' in item 
+    ? "/liked-songs-cover.jpg"
+    : item.coverImage || "/default-playlist.jpg";
+
   return (
-    <>
-      <div className="w-12 h-12 relative rounded overflow-hidden">
-        <Image
-          src={item.isLikedSongs ? '/liked-songs-cover.jpg' : (item.coverImage || '/default-playlist-cover.jpg')}
-          alt={item.name}
-          fill
-          className="object-cover"
-        />
-      </div>
-      <div className="flex-1">
-        <h3 className="font-medium">{item.name}</h3>
-        <p className="text-sm text-muted-foreground">
-          {songCount} {songCount === 1 ? 'song' : 'songs'}
-        </p>
-      </div>
-      {songCount > 0 && (
-        <div className="flex items-center gap-2">
-          <Button 
-            size="icon" 
-            variant="ghost"
-            onClick={() => onPlay(item.songs[0])}
-          >
-            <Play className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </>
+    <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-card/80">
+      <Image
+        src={coverImage}
+        alt={item.name}
+        width={48}
+        height={48}
+        className="rounded-md"
+      />
+      <h3 className="font-semibold">{item.name}</h3>
+    </div>
   );
 }

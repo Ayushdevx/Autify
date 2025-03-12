@@ -1,12 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { Sidebar } from '@/components/sidebar';
 import { Player } from '@/components/player';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'AUtify - AI-Powered Music Streaming',
@@ -23,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className="font-sans" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

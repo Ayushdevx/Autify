@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { usePlayerStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,22 +19,17 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import Image from 'next/image';
-import type ReactPlayer from 'react-player';
+import type { default as ReactPlayerType } from 'react-player';
 
 // Define the type for the player instance
-type PlayerRef = ReactPlayer & {
+type PlayerRef = ReactPlayerType & {
   seekTo(amount: number, type?: "seconds" | "fraction"): void;
 };
 
 // Dynamically import ReactPlayer with SSR disabled
-const ReactPlayer = dynamic<ReactPlayerType>(() => import('react-player/lazy'), {
+const ReactPlayer = dynamic(() => import('react-player/lazy'), {
   ssr: false,
 });
-
-interface ReactPlayerType {
-  seekTo: (amount: number, type?: 'seconds' | 'fraction') => void;
-  getInternalPlayer: () => any;
-}
 
 export function Player() {
   const { 
@@ -46,14 +41,14 @@ export function Player() {
     queue,
     removeFromQueue,
     clearQueue
-  } = usePlayerStore();
+  } = useStore();
   
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [repeat, setRepeat] = useState(false);
   const [shuffle, setShuffle] = useState(false);
   const [ready, setReady] = useState(false);
-  const playerRef = useRef<ReactPlayerType | null>(null);
+  const playerRef = useRef<PlayerRef | null>(null);
 
   const togglePlay = () => setIsPlaying(!isPlaying);
   const toggleMute = () => setVolume(volume === 0 ? 1 : 0);

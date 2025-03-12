@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { usePlayerStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, MoreVertical } from "lucide-react";
 import Image from "next/image";
@@ -17,7 +17,7 @@ export default function PlaylistPage() {
     isPlaying,
     setCurrentSong,
     setIsPlaying
-  } = usePlayerStore();
+  } = useStore();
 
   const handlePlay = (song: Song) => {
     if (currentSong?.id === song.id) {

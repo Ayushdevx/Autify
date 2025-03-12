@@ -5,7 +5,7 @@ import { Home, Search, Library, Plus, Heart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
-import { usePlayerStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface Playlist {
-  id: number;
+  id: string; // Changed from number to string
   name: string;
   icon?: React.ReactNode;
 }
@@ -28,9 +28,9 @@ export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [playlists, setPlaylists] = useState<Playlist[]>([
-    { id: 1, name: "Liked Songs", icon: <Heart className="h-4 w-4" /> },
-    { id: 2, name: "Your Top Songs 2024" },
-    { id: 3, name: "Discover Weekly" },
+    { id: "liked", name: "Liked Songs", icon: <Heart className="h-4 w-4" /> },
+    { id: "top-2024", name: "Your Top Songs 2024" },
+    { id: "discover", name: "Discover Weekly" },
   ]);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -63,7 +63,7 @@ export function Sidebar() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const newPlaylist: Playlist = {
-        id: playlists.length + 1,
+        id: Date.now().toString(), // Generate string ID
         name: newPlaylistName.trim(),
       };
       

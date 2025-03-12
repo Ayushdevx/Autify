@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Playlist } from "@/lib/types";
 
 export function PlaylistManager() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -27,18 +28,37 @@ export function PlaylistManager() {
 
   const {
     playlists,
-    createPlaylist,
-    deletePlaylist,
-    setCurrentPlaylist,
     currentPlaylist,
+    setCurrentPlaylist,
+    addPlaylist,
+    removePlaylist,
+    currentSong,
+    setCurrentSong,
   } = useStore();
 
   const handleCreatePlaylist = () => {
     if (newPlaylistName.trim()) {
-      createPlaylist(newPlaylistName, newPlaylistDescription);
+      const now = new Date();
+      const newPlaylist: Playlist = {
+        id: Date.now().toString(),
+        name: newPlaylistName,
+        description: newPlaylistDescription,
+        songs: [],
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      addPlaylist(newPlaylist);
       setNewPlaylistName("");
       setNewPlaylistDescription("");
       setIsCreateOpen(false);
+    }
+  };
+
+  const handleDeletePlaylist = (playlistId: string) => {
+    removePlaylist(playlistId);
+    if (currentPlaylist?.id === playlistId) {
+      setCurrentPlaylist(null);
     }
   };
 
@@ -96,7 +116,9 @@ export function PlaylistManager() {
                 size="icon"
                 onClick={() => {
                   setCurrentPlaylist(playlist);
-                  // Start playing the first song
+                  if (playlist.songs.length > 0) {
+                    setCurrentSong(playlist.songs[0]);
+                  }
                 }}
               >
                 <Play className="h-4 w-4" />
@@ -110,7 +132,7 @@ export function PlaylistManager() {
                 <DropdownMenuContent>
                   <DropdownMenuItem
                     className="text-destructive"
-                    onClick={() => deletePlaylist(playlist.id)}
+                    onClick={() => handleDeletePlaylist(playlist.id)}
                   >
                     <Trash className="h-4 w-4 mr-2" />
                     Delete Playlist
